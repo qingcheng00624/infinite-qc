@@ -1649,3 +1649,213 @@ body.studio-theme-dark .shell .comfy-random-btn.active svg {
     fill: none !important;
     stroke: #0f172a !important;
 }
+
+@media (max-width: 760px) {
+    body {
+        min-width: 0 !important;
+        -webkit-text-size-adjust: 100%;
+    }
+
+    .layout-container,
+    .container-box {
+        width: 100% !important;
+        max-width: none !important;
+        margin-top: 22px !important;
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+    }
+
+    header.pt-20 {
+        padding-top: 28px !important;
+        padding-bottom: 22px !important;
+    }
+
+    .console-card,
+    .result-frame,
+    .upload-item,
+    .work-panel,
+    .tool-panel,
+    .control-panel {
+        border-radius: 20px !important;
+    }
+
+    .console-card .p-8,
+    .console-card .p-6,
+    .work-panel,
+    .tool-panel,
+    .control-panel {
+        padding: 18px !important;
+    }
+
+    .console-card > .flex,
+    .console-card .flex.items-center.gap-8,
+    .console-card .flex.items-center.gap-6,
+    .console-card .flex.items-center.gap-4 {
+        min-width: 0 !important;
+        width: 100% !important;
+        flex-wrap: wrap !important;
+        gap: 14px !important;
+    }
+
+    .console-card > .flex.flex-col {
+        align-items: stretch !important;
+    }
+
+    .console-card > .flex.flex-col > .flex.items-center.gap-8 {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        align-items: stretch !important;
+        width: 100% !important;
+        gap: 14px !important;
+    }
+
+    .console-card > .flex.flex-col > .flex.items-center.gap-8 > .flex.flex-col {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .console-card > .flex.flex-col > .flex.items-center.gap-8 > .h-8.w-px {
+        display: none !important;
+    }
+
+    .mode-switcher {
+        min-height: 44px !important;
+        padding: 4px !important;
+        border-radius: 16px !important;
+    }
+
+    .mode-btn {
+        min-width: 0 !important;
+        height: 36px !important;
+        padding: 0 8px !important;
+        gap: 6px !important;
+        font-size: 12px !important;
+        line-height: 1 !important;
+        letter-spacing: 0 !important;
+        text-transform: none !important;
+        white-space: nowrap !important;
+    }
+
+    .mode-btn span {
+        min-width: 0 !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    .mode-glider {
+        border-radius: 12px !important;
+    }
+
+    .console-card > .flex.flex-col > .flex.items-center.gap-8 input[type="number"] {
+        width: 72px !important;
+        min-width: 72px !important;
+        font-size: 16px !important;
+        font-weight: 850 !important;
+    }
+
+    .console-card .justify-between,
+    .content-head,
+    .page-head {
+        gap: 14px !important;
+    }
+
+    .console-card textarea,
+    textarea.text-2xl {
+        font-size: 20px !important;
+        line-height: 1.45 !important;
+    }
+
+    .mode-switcher,
+    .engine-switch,
+    .select-shell,
+    .model-pill,
+    .resolution-toggle,
+    .mode-switch {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .masonry-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 12px !important;
+        column-gap: 12px !important;
+    }
+
+    .masonry-item {
+        border-radius: 18px !important;
+    }
+
+    .container-box .grid,
+    .layout-container .grid {
+        min-width: 0 !important;
+    }
+
+    .container-box img,
+    .layout-container img,
+    .result-frame img,
+    .result-frame video {
+        max-width: 100% !important;
+    }
+
+    .glass-btn,
+    .btn-render,
+    button[type="button"],
+    button[type="submit"] {
+        max-width: 100%;
+    }
+
+    .page {
+        padding: 22px 16px 56px !important;
+    }
+
+    .layout {
+        grid-template-columns: 1fr !important;
+        gap: 18px !important;
+    }
+
+    .page-head,
+    .content-head {
+        align-items: flex-start !important;
+        flex-direction: column !important;
+    }
+
+    .content-actions,
+    .models-toolbar-actions {
+        width: 100% !important;
+        justify-content: flex-end !important;
+        flex-wrap: wrap !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .layout-container,
+    .container-box {
+        margin-top: 16px !important;
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+    }
+
+    header.pt-20 {
+        padding-top: 20px !important;
+    }
+
+    .console-card .p-8,
+    .console-card .p-6,
+    .work-panel,
+    .tool-panel,
+    .control-panel {
+        padding: 14px !important;
+    }
+
+    .console-card textarea,
+    textarea.text-2xl {
+        font-size: 18px !important;
+    }
+
+    .masonry-grid {
+        gap: 10px !important;
+        column-gap: 10px !important;
+    }
+}

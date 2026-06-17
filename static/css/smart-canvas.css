@@ -1136,4 +1136,156 @@ input[type=range].smart-range::-webkit-slider-thumb { -webkit-appearance:none; w
 .theme-dark .edit-text-inline { background:rgba(15,23,42,.86); border-color:rgba(226,232,240,.5); box-shadow:0 8px 24px rgba(0,0,0,.34); }
 .theme-dark .image-edit-tools input[type="range"]::-webkit-slider-runnable-track { background:#334155; }
 .theme-dark .image-edit-tools input[type="range"]::-moz-range-track { background:#334155; }
-@media (max-width:760px) { .composer { width:min(540px, calc(100vw - 28px)); } .composer-card { grid-template-columns:minmax(0, 1fr) auto; } .smart-minimap { width:148px; height:98px; } }
+@media (max-width:760px) {
+    body,
+    .shell {
+        height:100dvh;
+        min-height:100dvh;
+    }
+
+    .smart-back {
+        left:14px;
+        top:14px;
+        height:38px;
+        padding:0 12px;
+    }
+
+    .smart-title {
+        left:14px;
+        right:14px;
+        top:62px;
+        max-width:none;
+    }
+
+    .asset-toggle,
+    .smart-log-toggle,
+    .smart-shortcut-toggle,
+    .smart-workflow-toggle {
+        top:14px;
+        width:38px;
+        height:38px;
+        padding:0;
+    }
+
+    .asset-toggle { right:14px; }
+    .smart-log-toggle { right:60px; }
+    .smart-shortcut-toggle { right:106px; }
+    .smart-workflow-toggle { right:152px; }
+
+    .smart-log-toggle span,
+    .smart-shortcut-toggle span,
+    .smart-workflow-toggle span,
+    .asset-toggle span {
+        display:none;
+    }
+
+    .asset-panel,
+    .shortcut-modal,
+    .workflow-transfer-panel {
+        left:14px;
+        right:14px;
+        top:110px;
+        width:auto;
+        max-width:none;
+        border-radius:16px;
+    }
+
+    .asset-panel {
+        bottom:14px;
+    }
+
+    .shortcut-modal,
+    .workflow-transfer-panel {
+        max-height:calc(100dvh - 124px);
+    }
+
+    .workflow-export-actions,
+    .workflow-transfer-actions {
+        grid-template-columns:1fr;
+    }
+
+    .workflow-transfer-btn {
+        width:100%;
+        min-height:34px;
+    }
+
+    .composer {
+        width:min(540px, calc(100vw - 28px));
+        max-width:calc(100vw - 28px);
+    }
+
+    .composer-card {
+        grid-template-columns:minmax(0, 1fr) auto;
+        border-radius:16px;
+    }
+
+    .param-row,
+    .dynamic-params {
+        max-width:100%;
+        overflow-x:auto;
+        scrollbar-width:none;
+    }
+
+    .param-row::-webkit-scrollbar,
+    .dynamic-params::-webkit-scrollbar {
+        display:none;
+    }
+
+    .smart-minimap {
+        right:14px;
+        bottom:14px;
+        width:148px;
+        height:98px;
+        border-radius:15px;
+    }
+
+    .log-modal,
+    .image-edit-modal {
+        padding:10px;
+        align-items:stretch;
+    }
+
+    .log-panel,
+    .image-edit-panel {
+        width:100%;
+        max-height:calc(100dvh - 20px);
+        border-radius:18px;
+    }
+
+    .image-edit-panel {
+        height:calc(100dvh - 20px);
+    }
+}
+
+@media (max-width:420px) {
+    .smart-back span {
+        display:none;
+    }
+
+    .smart-back {
+        width:38px;
+        padding:0;
+        justify-content:center;
+    }
+
+    .smart-workflow-toggle { right:148px; }
+
+    .asset-panel,
+    .shortcut-modal,
+    .workflow-transfer-panel {
+        left:8px;
+        right:8px;
+        top:104px;
+    }
+
+    .asset-panel {
+        bottom:8px;
+    }
+
+    .smart-minimap {
+        width:118px;
+        height:78px;
+        right:8px;
+        bottom:8px;
+    }
+}

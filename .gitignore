@@ -1,0 +1,13 @@
+API/.env
+data/
+assets/
+output/
+logs/
+*.log
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.DS_Store
+Thumbs.db

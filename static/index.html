@@ -1439,6 +1439,283 @@
         .sidebar.is-collapsing:hover .update-now-text {
             max-width: 42px;
         }
+
+        @media (max-width: 820px) {
+            html,
+            body {
+                height: 100dvh;
+                overflow: visible;
+            }
+
+            body {
+                min-height: 100dvh;
+            }
+
+            .app-shell {
+                --mobile-nav-height: 64px;
+                display: block;
+                height: 100dvh;
+                min-height: 100dvh;
+                overflow: hidden;
+                padding: 0 0 calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px));
+            }
+
+            .stage {
+                position: absolute;
+                inset: 0 0 calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px)) 0;
+                margin: 0;
+                border: 0;
+                border-radius: 0;
+                min-width: 0;
+                box-shadow: none;
+            }
+
+            iframe {
+                transform: none;
+                filter: none;
+            }
+
+            .sidebar,
+            .sidebar:hover,
+            .sidebar.is-pinned,
+            .sidebar.is-collapsing:hover {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: auto;
+                min-width: 0;
+                height: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px));
+                max-height: none;
+                padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+                border-right: 0;
+                border-top: 1px solid var(--border);
+                border-radius: 0;
+                flex-direction: row;
+                align-items: center;
+                gap: 6px;
+                overflow: visible;
+                box-shadow: 0 -14px 40px rgba(15, 23, 42, .12);
+                backdrop-filter: blur(18px);
+                -webkit-backdrop-filter: blur(18px);
+                transition: background .3s, border-color .3s;
+            }
+
+            .logo-ring {
+                display: none;
+            }
+
+            .sidebar nav {
+                width: auto;
+                flex: 1 1 auto;
+                min-width: 0;
+                height: 48px;
+                flex-direction: row;
+                align-items: center;
+                gap: 4px;
+                overflow-x: auto;
+                overflow-y: hidden;
+                padding: 0;
+                scrollbar-width: none !important;
+                scrollbar-gutter: auto;
+            }
+
+            .sidebar nav::-webkit-scrollbar {
+                display: none !important;
+            }
+
+            .nav-fold-toggle,
+            .sidebar nav > div[style*="width:32px"] {
+                display: none !important;
+            }
+
+            .nav-fold-group,
+            .nav-fold-group.is-collapsed {
+                width: auto;
+                max-height: none;
+                opacity: 1;
+                overflow: visible;
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                pointer-events: auto;
+                gap: 4px;
+            }
+
+            .nav-item,
+            .sidebar:hover .nav-item,
+            .sidebar.is-pinned .nav-item,
+            .sidebar.is-collapsing:hover .nav-item {
+                width: 46px;
+                min-width: 46px;
+                height: 46px;
+                flex: 0 0 46px;
+                margin: 0;
+                padding: 0;
+                border-radius: 16px;
+                align-items: center;
+                justify-content: center;
+                transition: background-color .18s ease, color .18s ease;
+            }
+
+            .nav-item svg,
+            .nav-item .w-5 {
+                width: 20px;
+                height: 20px;
+            }
+
+            .nav-text,
+            .sidebar:hover .nav-text,
+            .sidebar.is-pinned .nav-text,
+            .sidebar.is-collapsing:hover .nav-text {
+                display: none;
+                opacity: 0;
+                max-width: 0;
+                margin-left: 0;
+            }
+
+            .side-actions {
+                width: auto;
+                flex: 0 0 auto;
+                margin: 0;
+                padding: 0 0 0 6px;
+                border-top: 0;
+                border-left: 1px solid var(--border);
+                flex-direction: row;
+                align-items: center;
+                gap: 4px;
+            }
+
+            .side-pill,
+            .sidebar:hover .side-pill,
+            .sidebar.is-pinned .side-pill,
+            .sidebar.is-collapsing:hover .side-pill {
+                width: 46px;
+                height: 46px;
+                flex: 0 0 46px;
+                padding: 0;
+                border-radius: 16px;
+                gap: 0;
+                justify-content: center;
+                transition: background-color .18s ease, color .18s ease, border-color .18s ease;
+            }
+
+            .side-pill-text,
+            .sidebar:hover .side-pill-text,
+            .sidebar.is-pinned .side-pill-text,
+            .sidebar.is-collapsing:hover .side-pill-text,
+            .settings-fold-chevron {
+                display: none;
+                opacity: 0;
+                max-width: 0;
+            }
+
+            .settings-fold-group {
+                position: fixed;
+                right: 10px;
+                bottom: calc(var(--mobile-nav-height) + 8px + env(safe-area-inset-bottom, 0px));
+                z-index: 500;
+                width: min(220px, calc(100vw - 20px));
+                padding: 8px;
+                border: 1px solid var(--border);
+                border-radius: 18px;
+                background: var(--sidebar-bg);
+                box-shadow: 0 20px 54px rgba(15, 23, 42, .16);
+                backdrop-filter: blur(18px);
+                -webkit-backdrop-filter: blur(18px);
+                align-items: stretch;
+                gap: 6px;
+            }
+
+            .settings-fold-group:not(.is-collapsed) {
+                max-height: 180px;
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            .settings-fold-group .side-pill,
+            .sidebar:hover .settings-fold-group .side-pill,
+            .sidebar.is-pinned .settings-fold-group .side-pill {
+                width: 100%;
+                flex-basis: 40px;
+                height: 40px;
+                padding: 0 12px;
+                justify-content: flex-start;
+                gap: 10px;
+                border-radius: 14px;
+            }
+
+            .settings-fold-group .side-pill-text,
+            .sidebar:hover .settings-fold-group .side-pill-text,
+            .sidebar.is-pinned .settings-fold-group .side-pill-text {
+                display: inline;
+                opacity: 1;
+                max-width: 150px;
+            }
+
+            #github-entry-btn,
+            #update-now-btn,
+            #project-version-badge,
+            .author-box {
+                display: none !important;
+            }
+
+            .nano-monitor {
+                display: none;
+            }
+
+            .stat-group {
+                gap: 5px;
+                font-size: 10px;
+            }
+
+            .label-nano {
+                font-size: 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .app-shell {
+                --mobile-nav-height: 62px;
+                padding: 0 0 calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px));
+            }
+
+            .stage {
+                inset: 0 0 calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px)) 0;
+                border-radius: 0;
+            }
+
+            .sidebar,
+            .sidebar:hover,
+            .sidebar.is-pinned,
+            .sidebar.is-collapsing:hover {
+                left: 0;
+                right: 0;
+                bottom: 0;
+                height: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px));
+                max-height: none;
+                border-radius: 0;
+            }
+
+            .sidebar nav {
+                height: 44px;
+            }
+
+            .nav-item,
+            .sidebar:hover .nav-item,
+            .sidebar.is-pinned .nav-item,
+            .sidebar.is-collapsing:hover .nav-item,
+            .side-pill,
+            .sidebar:hover .side-pill,
+            .sidebar.is-pinned .side-pill,
+            .sidebar.is-collapsing:hover .side-pill {
+                width: 42px;
+                min-width: 42px;
+                height: 42px;
+                flex-basis: 42px;
+                border-radius: 14px;
+            }
+        }
     </style>
 </head>
 

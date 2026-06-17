@@ -1,0 +1,12 @@
+services:
+  infinite-canvas:
+    image: qc0624/infinite-canvas:latest
+    container_name: infinite-canvas
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+      - ./assets:/app/assets
+      - ./output:/app/output
+      - ./API:/app/API
+    restart: unless-stopped

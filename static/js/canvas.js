@@ -262,6 +262,7 @@ let connections = [];
 let viewport = {x: -1800, y: -1000, scale: 1};
 let dragNode = null;
 let dragBoard = null;
+let touchBoardPan = null;
 let minimapDrag = false;
 let minimapState = null;
 let minimapRenderQueued = false;
@@ -994,6 +995,13 @@ function screenToWorld(clientX, clientY){
     const rect = board.getBoundingClientRect();
     return { x:(clientX - rect.left - viewport.x) / viewport.scale, y:(clientY - rect.top - viewport.y) / viewport.scale };
 }
+function boardClientCenter(dx=0, dy=0){
+    const rect = board.getBoundingClientRect();
+    return {
+        x:rect.left + rect.width / 2 + dx,
+        y:rect.top + rect.height / 2 + dy
+    };
+}
 function applyViewport(){
     world.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`;
     scheduleMinimapRender();
@@ -1115,6 +1123,58 @@ function fitAllNodesViewport(){
     renderLinks();
     renderSelectionHub();
     scheduleViewportSave();
+}
+function isMobileCanvasViewport(){
+    return window.innerWidth <= 760 || Boolean(window.matchMedia?.('(pointer: coarse)')?.matches);
+}
+function rectIntersectionRatio(a, b){
+    const left = Math.max(a.x, b.x);
+    const top = Math.max(a.y, b.y);
+    const right = Math.min(a.x + a.w, b.x + b.w);
+    const bottom = Math.min(a.y + a.h, b.y + b.h);
+    if(right <= left || bottom <= top) return 0;
+    const area = Math.max(1, a.w * a.h);
+    return ((right - left) * (bottom - top)) / area;
+}
+function mobileViewportAnchorNode(){
+    const selectedNode = [...selected].map(id => nodes.find(n => n.id === id)).find(Boolean);
+    if(selectedNode) return selectedNode;
+    return nodes.find(n => n.type === 'prompt')
+        || nodes.find(n => n.type === 'image')
+        || nodes.find(n => CANVAS_GENERATOR_TYPES.includes(n.type))
+        || nodes[0]
+        || null;
+}
+function centerMobileViewportOnNode(node){
+    if(!node) return false;
+    const boardRect = board.getBoundingClientRect();
+    if(!boardRect.width || !boardRect.height) return false;
+    const r = estimatedNodeRect(node);
+    const fitScale = Math.min(
+        0.86,
+        Math.max(0.5, (boardRect.width - 44) / Math.max(1, r.w)),
+        Math.max(0.5, (boardRect.height - 180) / Math.max(1, r.h))
+    );
+    viewport.scale = Math.max(0.5, Math.min(0.86, fitScale));
+    viewport.x = boardRect.width / 2 - (r.x + r.w / 2) * viewport.scale;
+    viewport.y = boardRect.height / 2 - (r.y + r.h / 2) * viewport.scale;
+    applyViewport();
+    renderLinks();
+    renderSelectionHub();
+    scheduleViewportSave();
+    return true;
+}
+function repairMobileViewportIfNeeded(){
+    if(!canvas || !isMobileCanvasViewport() || !nodes.length) return;
+    const view = currentWorldViewRect();
+    const ratios = nodes.map(node => rectIntersectionRatio(estimatedNodeRect(node), view));
+    const maxVisibleRatio = ratios.length ? Math.max(...ratios) : 0;
+    if(maxVisibleRatio >= 0.58) return;
+    centerMobileViewportOnNode(mobileViewportAnchorNode());
+}
+function scheduleMobileViewportRepair(){
+    if(!isMobileCanvasViewport()) return;
+    requestAnimationFrame(() => requestAnimationFrame(repairMobileViewportIfNeeded));
 }
 function enterZoomPreview(){
     if(zoomPreviewState || !canvas) return;
@@ -1719,6 +1779,7 @@ async function createCanvas(){
         selected.clear();
         setCanvasMode(true);
         render();
+        scheduleMobileViewportRepair();
         setStatus('Saved');
         setCreateMode(false);
         await loadCanvasList(false);
@@ -1870,6 +1931,7 @@ async function openCanvas(id){
         setCanvasMode(true);
         renderCanvasList();
         render();
+        scheduleMobileViewportRepair();
         resumeCanvasImageTasks();
         startCanvasRemotePolling();
         setStatus('Ready');
@@ -2221,6 +2283,7 @@ document.getElementById('imageEditStage').addEventListener('wheel', event => {
 }, {passive: false});
 window.addEventListener('resize', () => {
     if(cropState) syncImageEditOverflow();
+    if(canvas) scheduleMobileViewportRepair();
 });
 backToManagerBtn.addEventListener('click', returnToCanvasManager);
 
@@ -2231,7 +2294,15 @@ function addNode(node){
     scheduleSave();
     return node;
 }
-function defaultPoint(dx=0, dy=0){ return screenToWorld(window.innerWidth / 2 + dx, window.innerHeight / 2 + dy); }
+function defaultPoint(dx=0, dy=0){
+    if(isMobileCanvasViewport()){
+        const point = boardClientCenter(dx * 0.42, dy * 0.42);
+        const p = screenToWorld(point.x, point.y);
+        return {x:p.x - 170, y:p.y - 120};
+    }
+    const point = boardClientCenter(dx, dy);
+    return screenToWorld(point.x, point.y);
+}
 function addImageNode(point){
     const p = point || defaultPoint(-120, 0);
     return addNode({id:uid('img'), type:'image', x:p.x, y:p.y, url:'', name:'空白图片'});
@@ -5772,6 +5843,10 @@ function renderNode(node){
         if(e.button !== 0 || !isNodeDragSurface(e.target)) return;
         startNodeDrag(e, node);
     };
+    el.addEventListener('pointerdown', e => {
+        if(!isTouchPointerEvent(e) || e.isPrimary === false || !isNodeDragSurface(e.target)) return;
+        startNodeDrag(e, node);
+    }, {passive:false});
     const canInput = ['generator','comfy','ltxDirector','output','llm','msgen','video','rh'].includes(node.type) || (node.type === 'loop' && (node.imageInput || node.showPrompt));
     const canOutput = ['image','prompt','loop','group','promptGroup','generator','comfy','ltxDirector','llm','msgen','video','rh','output'].includes(node.type);
     if(canInput) el.insertAdjacentHTML('beforeend', `<div class="port in" title="${tr('canvas.connectHere')}"></div>`);
@@ -13014,6 +13089,37 @@ async function importWorkflowFile(file){
         showErrorModal(err.message || '导入工作流失败', '导入工作流');
     }
 }
+function isTouchPointerEvent(e){
+    return Boolean(e?.pointerType && e.pointerType !== 'mouse');
+}
+function onNodePointerDrag(e){
+    if(!dragNode || dragNode.pointerId !== e.pointerId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    onNodeDrag(e);
+}
+function finishNodePointerDrag(e){
+    if(!dragNode || dragNode.pointerId !== e.pointerId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    endDrag(e);
+}
+function bindNodePointerDrag(e){
+    if(!dragNode || !isTouchPointerEvent(e)) return;
+    dragNode.pointerId = e.pointerId;
+    dragNode.pointerCaptureEl = e.currentTarget?.closest?.('.node') || nodesEl.querySelector(`.node[data-id="${CSS.escape(dragNode.node.id)}"]`);
+    try { dragNode.pointerCaptureEl?.setPointerCapture?.(e.pointerId); } catch(err) {}
+    window.addEventListener('pointermove', onNodePointerDrag, {passive:false});
+    window.addEventListener('pointerup', finishNodePointerDrag, {passive:false});
+    window.addEventListener('pointercancel', finishNodePointerDrag, {passive:false});
+}
+function unbindNodePointerDrag(activeDrag, event=null){
+    if(activeDrag?.pointerId == null) return;
+    window.removeEventListener('pointermove', onNodePointerDrag);
+    window.removeEventListener('pointerup', finishNodePointerDrag);
+    window.removeEventListener('pointercancel', finishNodePointerDrag);
+    try { activeDrag.pointerCaptureEl?.releasePointerCapture?.(activeDrag.pointerId); } catch(err) {}
+}
 function startNodeDrag(e, node){
     if(e.button !== 0) return;
     if(startKnifeDrag(e)) return;
@@ -13057,8 +13163,11 @@ function startNodeDrag(e, node){
     const children = [...collected.values()];
     dragNode = {node: dragTarget, children, sx:e.clientX, sy:e.clientY, ox:dragTarget.x, oy:dragTarget.y};
     document.body.classList.add('canvas-node-drag');
-    window.onmousemove = onNodeDrag;
-    window.onmouseup = endDrag;
+    if(isTouchPointerEvent(e)) bindNodePointerDrag(e);
+    else {
+        window.onmousemove = onNodeDrag;
+        window.onmouseup = endDrag;
+    }
 }
 function onNodeDrag(e){
     if(!dragNode) return;
@@ -13234,15 +13343,18 @@ function sanitizeConnections(){
 }
 function endDrag(event=null){
     const hadContentDrag = Boolean(dragNode || resizeNode || llmPaneDrag || knifeChanged || tempLink);
-    const hadViewportDrag = Boolean(dragBoard || minimapDrag);
+    const hadViewportDrag = Boolean(dragBoard || touchBoardPan || minimapDrag);
+    const activeNodeDrag = dragNode;
     if(dragNode){
         const moved = [dragNode.node, ...(dragNode.children || []).map(c => c.node)].filter(Boolean);
         // 拖动 group/promptGroup 自身时不重新评估（成员跟着一起走，包含关系不变）
         const draggedGroup = moved.some(n => n.type === 'group' || n.type === 'promptGroup');
         if(!draggedGroup) updateGroupMembership(moved);
     }
+    unbindNodePointerDrag(activeNodeDrag, event);
     dragNode = null;
     dragBoard = null;
+    touchBoardPan = null;
     resizeNode = null;
     llmPaneDrag = null;
     knifeActive = false;
@@ -13372,6 +13484,7 @@ function renderLinks(){
         if(!canResolvePort(c.from) || !canResolvePort(c.to)) return;
         const a = portPoint(c.from, 'out'), b = portPoint(c.to, 'in');
         linksEl.appendChild(pathEl(a.x, a.y, b.x, b.y, 'link'));
+        linksEl.appendChild(pathEl(a.x, a.y, b.x, b.y, 'link link-flow'));
         const btn = linkDeleteButton(c, a, b);
         linkControlsEl.appendChild(btn);
         linksEl.appendChild(linkHitEl(a.x, a.y, b.x, b.y, c.id));
@@ -13640,6 +13753,63 @@ function startBoardPan(e, opts={}){
     };
     return true;
 }
+function isTouchBoardPanSurface(target){
+    if(target === board || target === world || target === nodesEl || target === linksEl) return true;
+    return Boolean(target?.closest?.('.link-hit')) && !target.closest?.('.node');
+}
+function isTouchBoardPanIgnoredTarget(target){
+    return isEditableTarget(target)
+        || Boolean(target?.closest?.('button, select, input, textarea, .node, .port, .resize-handle, #createMenu, #linkCreateMenu, #nodeInputMenu, #nodeOutputMenu, #imageNodeMenu, .minimap, #canvasAssetPanel, #assetManagerModal, #workflowTransferModal, #logModal, #promptTemplateModal, #imageEditModal, #outputLightbox'));
+}
+function startTouchBoardPan(e){
+    if(!canvas || e.pointerType === 'mouse' || e.isPrimary === false) return false;
+    if(zoomPreviewState || touchBoardPan || dragNode || resizeNode || tempLink || selectDrag) return false;
+    if(!isTouchBoardPanSurface(e.target) || isTouchBoardPanIgnoredTarget(e.target)) return false;
+    e.preventDefault();
+    e.stopPropagation();
+    closeCreateMenu();
+    if(document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+    touchBoardPan = {
+        pointerId:e.pointerId,
+        sx:e.clientX,
+        sy:e.clientY,
+        ox:viewport.x,
+        oy:viewport.y,
+        moved:false,
+        clearSelectionOnClick:true
+    };
+    dragBoard = touchBoardPan;
+    lastMouseBoard = screenToWorld(e.clientX, e.clientY);
+    document.body.classList.add('canvas-board-pan');
+    try { board.setPointerCapture?.(e.pointerId); } catch(err) {}
+    return true;
+}
+function moveTouchBoardPan(e){
+    if(!touchBoardPan || e.pointerId !== touchBoardPan.pointerId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if(Math.hypot(e.clientX - touchBoardPan.sx, e.clientY - touchBoardPan.sy) > 4) touchBoardPan.moved = true;
+    viewport.x = touchBoardPan.ox + e.clientX - touchBoardPan.sx;
+    viewport.y = touchBoardPan.oy + e.clientY - touchBoardPan.sy;
+    applyViewport();
+    lastMouseBoard = screenToWorld(e.clientX, e.clientY);
+}
+function finishTouchBoardPan(e){
+    if(!touchBoardPan || e.pointerId !== touchBoardPan.pointerId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try { board.releasePointerCapture?.(e.pointerId); } catch(err) {}
+    if(touchBoardPan.clearSelectionOnClick && !touchBoardPan.moved && selected.size){
+        selected.clear();
+        refreshSelectionVisuals();
+    }
+    endDrag(e);
+}
+
+board.addEventListener('pointerdown', startTouchBoardPan, {passive:false});
+board.addEventListener('pointermove', moveTouchBoardPan, {passive:false});
+board.addEventListener('pointerup', finishTouchBoardPan, {passive:false});
+board.addEventListener('pointercancel', finishTouchBoardPan, {passive:false});
 
 board.onmousedown = e => {
     if(!canvas) return;
