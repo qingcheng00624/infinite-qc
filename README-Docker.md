@@ -1,6 +1,9 @@
 # Infinite Canvas Docker 部署说明
 
-这份文档面向普通使用者，适合在本机、NAS 或服务器上用 Docker 直接运行已经发布好的 Infinite Canvas 镜像。
+上游源码与原作者：hero8152 / Infinite-Canvas
+GitHub：https://github.com/hero8152/Infinite-Canvas/tree/main
+
+说明：本 Docker 镜像是基于上述开源项目打包发布的运行镜像，不代表原作者发布或维护了该 Docker 镜像。
 
 ## 环境要求
 
