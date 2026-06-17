@@ -124,14 +124,16 @@ body.studio-theme-dark .canvas-meta-pop .emoji-option:hover { background:#263449
 .toolbar { padding:6px; display:flex; gap:6px; align-items:center; border-radius:18px; }
 .toolbar-items { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
 .toolbar.collapsed .toolbar-items { display:none; }
-.toolbar-fixed { display:flex; gap:6px; align-items:center; }
+.toolbar-fixed { display:flex; gap:6px; align-items:center; flex:0 0 auto; }
+.toolbar-fixed .tool-btn { flex:0 0 auto; }
 .toolbar-toggle i { transition:transform .18s var(--ease); }
 .toolbar.collapsed .toolbar-toggle i { transform:rotate(180deg); }
 .toolbar .toolbar-toggle { width:24px; height:25px; min-width:24px; padding:0; border-radius:10px; }
 .toolbar .toolbar-log,
-.toolbar .toolbar-asset { width:auto; height:38px; min-width:38px; padding:0 12px; }
+.toolbar .toolbar-asset,
+.toolbar .toolbar-workflow { width:auto; height:38px; min-width:max-content; padding:0 12px; }
 .toolbar.collapsed { padding:5px; }
-.tool-btn { height:38px; min-width:38px; padding:0 12px; border-radius:999px; display:flex; align-items:center; justify-content:center; gap:7px; color:var(--muted); background:var(--card-solid); border:1px solid var(--line); font-size:11px; font-weight:700; transition:all .2s var(--ease); pointer-events:auto; }
+.tool-btn { height:38px; min-width:38px; padding:0 12px; border-radius:999px; display:flex; align-items:center; justify-content:center; gap:7px; color:var(--muted); background:var(--card-solid); border:1px solid var(--line); font-size:11px; font-weight:700; white-space:nowrap; transition:all .2s var(--ease); pointer-events:auto; }
 .tool-btn:hover { background:var(--soft-2); color:var(--text); }
 .theme-toggle.active { background:var(--strong); color:var(--strong-text); border-color:var(--strong); }
 .workflow-transfer-panel { position:absolute; right:24px; top:76px; bottom:auto; z-index:42; width:390px; max-width:calc(100vw - 48px); max-height:min(430px, calc(100vh - 108px)); min-height:0; display:flex; flex-direction:column; border:1px solid var(--line); border-radius:16px; background:var(--panel); color:var(--text); box-shadow:0 22px 58px var(--shadow); backdrop-filter:blur(18px); overflow:hidden; opacity:0; visibility:hidden; pointer-events:none; transform:translateY(-8px); transition:opacity .16s ease, transform .16s ease, visibility .16s ease; }
