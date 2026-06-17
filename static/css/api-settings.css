@@ -5320,3 +5320,61 @@ html.studio-theme-dark body .recommend-tag.recommend-free-tag svg {
     color:#34d399 !important;
     stroke:#34d399 !important;
 }
+
+/* Mobile API settings: keep the model fetch toolbar readable on narrow viewports. */
+@media (max-width:1024px) {
+    .block.models-toolbar {
+        display:flex !important;
+        flex-direction:column !important;
+        align-items:stretch !important;
+        justify-content:flex-start !important;
+        gap:14px !important;
+        padding:18px 20px !important;
+    }
+
+    .models-toolbar > div:first-child {
+        width:100% !important;
+        min-width:0 !important;
+        flex:0 0 auto !important;
+    }
+
+    .models-toolbar .block-title,
+    .models-toolbar .block-desc {
+        width:100% !important;
+        max-width:none !important;
+        writing-mode:horizontal-tb !important;
+        text-orientation:mixed !important;
+        word-break:normal !important;
+        overflow-wrap:break-word !important;
+        white-space:normal !important;
+    }
+
+    .models-toolbar-actions {
+        width:100% !important;
+        display:grid !important;
+        grid-template-columns:repeat(2, minmax(0, 1fr)) !important;
+        gap:10px !important;
+        justify-content:stretch !important;
+    }
+
+    .models-toolbar-actions .action-btn {
+        width:100% !important;
+        min-width:0 !important;
+        padding:0 12px !important;
+        white-space:nowrap !important;
+    }
+}
+
+@media (max-width:520px) {
+    .page {
+        padding:18px 14px 84px !important;
+    }
+
+    .block.models-toolbar {
+        padding:18px 16px !important;
+    }
+
+    .models-toolbar-actions {
+        grid-template-columns:1fr !important;
+    }
+}

@@ -65,6 +65,85 @@
     </style>
     <link rel="stylesheet" href="/static/css/theme.css?v=2026.06.15.1781551499">
     <style>
+        html.studio-theme-dark,
+        html.theme-dark {
+            --accent: #e5e9f0;
+            --bg: #0f141d;
+            --bg-base: #0f141d;
+            --card: #171d29;
+            --text-main: #e5e9f0;
+        }
+        html.studio-theme-dark body,
+        body.studio-theme-dark,
+        html.theme-dark body,
+        body.theme-dark {
+            background: #0f141d !important;
+            color: #e5e9f0 !important;
+        }
+        html.studio-theme-dark body .nano-input,
+        html.studio-theme-dark body .upload-item,
+        html.studio-theme-dark body .tool-panel,
+        html.studio-theme-dark body .control-panel,
+        html.studio-theme-dark body .result-frame,
+        html.studio-theme-dark body .masonry-item,
+        html.theme-dark body .nano-input,
+        html.theme-dark body .upload-item,
+        html.theme-dark body .tool-panel,
+        html.theme-dark body .control-panel,
+        html.theme-dark body .result-frame,
+        html.theme-dark body .masonry-item {
+            background: #171d29 !important;
+            border-color: #2a3444 !important;
+            color: #e5e9f0 !important;
+        }
+        html.studio-theme-dark body .model-pill,
+        html.studio-theme-dark body .size-select,
+        html.studio-theme-dark body .size-custom,
+        html.studio-theme-dark body .size-fit-btn,
+        html.theme-dark body .model-pill,
+        html.theme-dark body .size-select,
+        html.theme-dark body .size-custom,
+        html.theme-dark body .size-fit-btn {
+            background: #111722 !important;
+            border-color: #334155 !important;
+            color: #e5e9f0 !important;
+        }
+        html.studio-theme-dark body .model-option.active,
+        html.theme-dark body .model-option.active {
+            background: #d8dee9 !important;
+            color: #10141d !important;
+            box-shadow: 0 10px 24px rgba(0,0,0,.2) !important;
+        }
+        html.studio-theme-dark body .mode-badge,
+        html.theme-dark body .mode-badge {
+            background: #111722 !important;
+            border-color: #2a3444 !important;
+            color: #9aa6b8 !important;
+        }
+        html.studio-theme-dark body .glass-btn,
+        html.theme-dark body .glass-btn {
+            background: #d8dee9 !important;
+            color: #10141d !important;
+        }
+        html.studio-theme-dark body .glass-btn:hover,
+        html.theme-dark body .glass-btn:hover {
+            background: #c8d0dc !important;
+        }
+        html.studio-theme-dark body #loader > div,
+        html.theme-dark body #loader > div {
+            border-color: #d8dee9 !important;
+            border-top-color: transparent !important;
+        }
+        html.studio-theme-dark body .upload-item:hover,
+        html.studio-theme-dark body .upload-item.drag-over,
+        html.theme-dark body .upload-item:hover,
+        html.theme-dark body .upload-item.drag-over {
+            border-color: #d8dee9 !important;
+        }
+        html.studio-theme-dark body #loadMoreTrigger:hover,
+        html.theme-dark body #loadMoreTrigger:hover {
+            color: #e8e8ea !important;
+        }
         html:not(.studio-theme-dark) body:not(.studio-theme-dark) #lightbox.gallery-lightbox {
             background: rgba(255,255,255,.99) !important;
             backdrop-filter: blur(22px) saturate(1.05) !important;

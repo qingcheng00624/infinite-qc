@@ -1835,7 +1835,7 @@
                             <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
                             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                         </svg>
-                        <span class="side-pill-text" data-i18n="common.darkMode">黑夜模式</span>
+                        <span class="side-pill-text" id="theme-toggle-text" data-i18n="common.darkMode">黑夜模式</span>
                     </button>
                     <button class="side-pill" onclick="toggleLanguage()" id="lang-toggle-btn" type="button" title="Language">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2266,14 +2266,26 @@
         }
 
         function updateThemeIcon(theme) {
+            const btn = document.getElementById('theme-toggle-btn');
+            const text = document.getElementById('theme-toggle-text');
             const moon = document.getElementById('icon-moon');
             const sun = document.getElementById('icon-sun');
             if (theme === 'dark') {
                 moon.style.display = 'none';
                 sun.style.display = 'block';
+                if(text) {
+                    text.dataset.i18n = 'common.lightMode';
+                    text.textContent = window.StudioI18n ? StudioI18n.t('common.lightMode') : '白天模式';
+                }
+                if(btn) btn.title = window.StudioI18n ? StudioI18n.t('common.switchToLightMode') : '切换白天模式';
             } else {
                 moon.style.display = 'block';
                 sun.style.display = 'none';
+                if(text) {
+                    text.dataset.i18n = 'common.darkMode';
+                    text.textContent = window.StudioI18n ? StudioI18n.t('common.darkMode') : '黑夜模式';
+                }
+                if(btn) btn.title = window.StudioI18n ? StudioI18n.t('common.switchToDarkMode') : '切换夜间模式';
             }
         }
 
@@ -2285,6 +2297,7 @@
         function toggleLanguage() {
             if(!window.StudioI18n) return;
             window.StudioI18n.toggle();
+            updateThemeIcon(window.StudioTheme ? window.StudioTheme.get() : 'light');
             document.querySelectorAll('iframe').forEach(frame => syncLanguageToFrame(frame));
             updateProjectUpdateTitle();
             refreshUpdateButtonText();
@@ -2315,7 +2328,10 @@
         window.addEventListener('DOMContentLoaded', () => {
             const theme = window.StudioTheme ? window.StudioTheme.get() : 'light';
             updateThemeIcon(theme);
-            if(window.StudioI18n) window.StudioI18n.apply();
+            if(window.StudioI18n) {
+                window.StudioI18n.apply();
+                updateThemeIcon(theme);
+            }
             broadcastLanguage();
             checkForUpdates();
         });
