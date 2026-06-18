@@ -266,6 +266,10 @@ body.canvas-node-resize .node input,
 body.canvas-node-resize .node select,
 body.canvas-node-resize .node .node-body,
 body.canvas-node-resize .node .llm-chat-log { pointer-events:none !important; }
+body.canvas-link-drag,
+body.canvas-link-drag * { user-select:none !important; }
+body.canvas-pinch-zoom,
+body.canvas-pinch-zoom * { user-select:none !important; }
 body.canvas-selecting,
 body.canvas-selecting * { user-select:none !important; }
 body.canvas-selecting .node textarea,
@@ -618,7 +622,7 @@ input[type=range].canvas-range::-webkit-slider-runnable-track { height:3px; bord
 .output-recover-query:hover:not(:disabled) { background:var(--soft-2); }
 .output-recover-query:disabled { opacity:.55; cursor:default; }
 @keyframes spin { to { transform:rotate(360deg); } }
-.port { position:absolute; top:50%; width:44px; height:44px; border-radius:50%; cursor:crosshair; transform:translateY(-50%); z-index:3; }
+.port { position:absolute; top:50%; width:44px; height:44px; border-radius:50%; cursor:crosshair; transform:translateY(-50%); z-index:3; touch-action:none; }
 .port::after { content:""; position:absolute; left:15px; top:15px; width:14px; height:14px; border-radius:50%; border:2px solid #fff; background:#111827; box-shadow:0 0 0 1px #94a3b8; transition:transform .14s var(--ease); }
 .port:hover::after { transform:scale(1.25); }
 .port.in { left:-29px; cursor:crosshair; }
@@ -1340,6 +1344,24 @@ body.studio-theme-dark .comfy-random-btn.active,
     .workflow-transfer-btn {
         width:100%;
         min-height:34px;
+    }
+
+    .port {
+        width:56px;
+        height:56px;
+    }
+
+    .port::after {
+        left:21px;
+        top:21px;
+    }
+
+    .port.in {
+        left:-35px;
+    }
+
+    .port.out {
+        right:-21px;
     }
 
     .hint {

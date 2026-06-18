@@ -263,6 +263,8 @@ let viewport = {x: -1800, y: -1000, scale: 1};
 let dragNode = null;
 let dragBoard = null;
 let touchBoardPan = null;
+let touchBoardPinch = null;
+const touchBoardPointers = new Map();
 let minimapDrag = false;
 let minimapState = null;
 let minimapRenderQueued = false;
@@ -995,6 +997,21 @@ function screenToWorld(clientX, clientY){
     const rect = board.getBoundingClientRect();
     return { x:(clientX - rect.left - viewport.x) / viewport.scale, y:(clientY - rect.top - viewport.y) / viewport.scale };
 }
+function clampViewportScale(value){
+    const n = Number(value);
+    if(!Number.isFinite(n) || n <= 0) return 1;
+    return Math.max(0.06, Math.min(2.2, n));
+}
+function setViewportScaleAroundClient(scale, clientX, clientY, worldPoint=null){
+    const rect = board.getBoundingClientRect();
+    const point = worldPoint || screenToWorld(clientX, clientY);
+    viewport.scale = clampViewportScale(scale);
+    viewport.x = clientX - rect.left - point.x * viewport.scale;
+    viewport.y = clientY - rect.top - point.y * viewport.scale;
+    applyViewport();
+    renderLinks();
+    renderSelectionHub();
+}
 function boardClientCenter(dx=0, dy=0){
     const rect = board.getBoundingClientRect();
     return {
@@ -1090,8 +1107,7 @@ function centerViewportOnWorldPoint(point){
     renderSelectionHub();
 }
 function safeViewportScale(value){
-    const n = Number(value);
-    return Number.isFinite(n) && n > 0 ? n : 1;
+    return clampViewportScale(value);
 }
 function fitAllNodesViewport(){
     const rect = board.getBoundingClientRect();
@@ -5868,8 +5884,16 @@ function renderNode(node){
     el.ondragstart = e => { e.preventDefault(); e.stopPropagation(); };
     const out = el.querySelector('.port.out');
     if(out) out.onmousedown = e => { if(e.button === 0 && !e.shiftKey) startLink(e, node.id, 'out'); };
+    if(out) out.addEventListener('pointerdown', e => {
+        if(!isTouchPointerEvent(e) || e.isPrimary === false || e.shiftKey) return;
+        startLink(e, node.id, 'out');
+    }, {passive:false});
     const inp = el.querySelector('.port.in');
     if(inp) inp.onmousedown = e => { if(e.button === 0 && !e.shiftKey) startLink(e, node.id, 'in'); };
+    if(inp) inp.addEventListener('pointerdown', e => {
+        if(!isTouchPointerEvent(e) || e.isPrimary === false || e.shiftKey) return;
+        startLink(e, node.id, 'in');
+    }, {passive:false});
     return el;
 }
 function bindOutputWrap(wrap, node){
@@ -13227,67 +13251,133 @@ function onNodeResize(e){
     renderSelectionHub();
     scheduleMinimapRender();
 }
+function linkDropRadiusForEvent(e){
+    if(isTouchPointerEvent(e)) return 92;
+    if(window.matchMedia?.('(pointer: coarse)')?.matches) return 78;
+    return 48;
+}
+function unbindLinkPointerDrag(activeLink){
+    if(activeLink?.pointerId == null) return;
+    window.removeEventListener('pointermove', activeLink.onPointerMove);
+    window.removeEventListener('pointerup', activeLink.onPointerUp);
+    window.removeEventListener('pointercancel', activeLink.onPointerCancel);
+    try { activeLink.pointerCaptureEl?.releasePointerCapture?.(activeLink.pointerId); } catch(err) {}
+}
+function clearLinkDrag(activeLink=tempLink, shouldRender=true){
+    unbindLinkPointerDrag(activeLink);
+    if(tempLink === activeLink) tempLink = null;
+    document.body.classList.remove('canvas-link-drag');
+    window.onmousemove = null;
+    window.onmouseup = null;
+    if(shouldRender) renderLinks();
+}
+function updateLinkDrag(activeLink, e){
+    if(!activeLink) return;
+    if(activeLink.pointerId != null && e.pointerId !== activeLink.pointerId) return;
+    e.preventDefault?.();
+    e.stopPropagation?.();
+    const p = screenToWorld(e.clientX, e.clientY);
+    activeLink.x2 = p.x;
+    activeLink.y2 = p.y;
+    lastMouseBoard = p;
+    renderLinks();
+}
+function completeLinkDrag(activeLink, e){
+    if(!activeLink) return;
+    if(activeLink.pointerId != null && e.pointerId !== activeLink.pointerId) return;
+    e.preventDefault?.();
+    e.stopPropagation?.();
+    const originId = activeLink.from;
+    const originKind = activeLink.originKind || 'out';
+    const source = nodes.find(n => n.id === originId);
+    const targetKind = originKind === 'out' ? 'in' : 'out';
+    const targetPort = nearestPort(e.clientX, e.clientY, targetKind, {
+        radius:linkDropRadiusForEvent(e),
+        excludeId:originId
+    });
+    const target = targetPort?.closest('.node');
+    clearLinkDrag(activeLink, false);
+    let rendered = false;
+    if(target){
+        const targetId = target.dataset.id;
+        const fromId = originKind === 'out' ? originId : targetId;
+        const toId = originKind === 'out' ? targetId : originId;
+        if(canConnect(fromId, toId)){
+            if(!connections.some(c => c.from === fromId && c.to === toId)){
+                pushUndo();
+                connections.push({id:uid('c'), from:fromId, to:toId});
+                syncLatestGeneratedOutputToConnection(fromId, toId);
+            }
+            syncGeneratorInputs();
+            scheduleSave();
+            render();
+            rendered = true;
+        }
+    } else if(originKind === 'out'){
+        if(source && CANVAS_GENERATOR_TYPES.includes(source.type)){
+            const p = screenToWorld(e.clientX, e.clientY);
+            pushUndo();
+            const out = {id:uid('out'), type:'output', x:p.x, y:p.y - 63, images:[]};
+            nodes.push(out);
+            connections.push({id:uid('c'), from:source.id, to:out.id});
+            syncLatestGeneratedOutputToConnection(source.id, out.id);
+            syncGeneratorInputs();
+            scheduleSave();
+            render();
+            rendered = true;
+        } else {
+            openLinkCreateMenu(originId, originKind, e.clientX, e.clientY);
+        }
+    } else if(originKind === 'in'){
+        openLinkCreateMenu(originId, originKind, e.clientX, e.clientY);
+    }
+    if(!rendered) renderLinks();
+}
+function cancelLinkDrag(activeLink, e=null){
+    if(!activeLink) return;
+    if(activeLink.pointerId != null && e?.pointerId !== activeLink.pointerId) return;
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    clearLinkDrag(activeLink);
+}
 function startLink(e, originId, originKind){
+    if(e.button != null && e.button !== 0) return;
+    e.preventDefault?.();
     e.stopPropagation();
+    e.stopImmediatePropagation?.();
     originKind = originKind || 'out';
     const src = portPoint(originId, originKind);
-    const source = nodes.find(n => n.id === originId);
-    tempLink = {from:originId, originKind, x1:src.x, y1:src.y, x2:src.x, y2:src.y};
-    window.onmousemove = e2 => {
-        const p = screenToWorld(e2.clientX, e2.clientY);
-        tempLink.x2 = p.x;
-        tempLink.y2 = p.y;
-        renderLinks();
-    };
-    window.onmouseup = e2 => {
-        const targetKind = originKind === 'out' ? 'in' : 'out';
-        const targetPort = nearestPort(e2.clientX, e2.clientY, targetKind);
-        const target = targetPort?.closest('.node');
-        if(target){
-            const targetId = target.dataset.id;
-            const fromId = originKind === 'out' ? originId : targetId;
-            const toId = originKind === 'out' ? targetId : originId;
-            if(canConnect(fromId, toId)){
-                if(!connections.some(c => c.from === fromId && c.to === toId)){
-                    pushUndo();
-                    connections.push({id:uid('c'), from:fromId, to:toId});
-                    syncLatestGeneratedOutputToConnection(fromId, toId);
-                }
-                syncGeneratorInputs();
-                scheduleSave();
-                render();
-            }
-        } else if(originKind === 'out'){
-            if(source && CANVAS_GENERATOR_TYPES.includes(source.type)){
-                const p = screenToWorld(e2.clientX, e2.clientY);
-                pushUndo();
-                const out = {id:uid('out'), type:'output', x:p.x, y:p.y - 63, images:[]};
-                nodes.push(out);
-                connections.push({id:uid('c'), from:source.id, to:out.id});
-                syncLatestGeneratedOutputToConnection(source.id, out.id);
-                syncGeneratorInputs();
-                scheduleSave();
-                render();
-            } else {
-                openLinkCreateMenu(originId, originKind, e2.clientX, e2.clientY);
-            }
-        } else if(originKind === 'in'){
-            openLinkCreateMenu(originId, originKind, e2.clientX, e2.clientY);
-        }
-        tempLink = null;
-        window.onmousemove = null;
-        window.onmouseup = null;
-        renderLinks();
-    };
+    const activeLink = {from:originId, originKind, x1:src.x, y1:src.y, x2:src.x, y2:src.y};
+    tempLink = activeLink;
+    document.body.classList.add('canvas-link-drag');
+    if(isTouchPointerEvent(e)){
+        activeLink.pointerId = e.pointerId;
+        activeLink.pointerCaptureEl = e.currentTarget || document.elementFromPoint(e.clientX, e.clientY);
+        activeLink.onPointerMove = e2 => updateLinkDrag(activeLink, e2);
+        activeLink.onPointerUp = e2 => completeLinkDrag(activeLink, e2);
+        activeLink.onPointerCancel = e2 => cancelLinkDrag(activeLink, e2);
+        try { activeLink.pointerCaptureEl?.setPointerCapture?.(e.pointerId); } catch(err) {}
+        window.addEventListener('pointermove', activeLink.onPointerMove, {passive:false});
+        window.addEventListener('pointerup', activeLink.onPointerUp, {passive:false});
+        window.addEventListener('pointercancel', activeLink.onPointerCancel, {passive:false});
+    } else {
+        window.onmousemove = e2 => updateLinkDrag(activeLink, e2);
+        window.onmouseup = e2 => completeLinkDrag(activeLink, e2);
+    }
+    renderLinks();
 }
-function nearestPort(clientX, clientY, kind){
+function nearestPort(clientX, clientY, kind, options={}){
     const selector = `.port.${kind}`;
     const direct = document.elementFromPoint(clientX, clientY)?.closest(selector);
-    if(direct) return direct;
+    const excludeId = options.excludeId || '';
+    if(direct && direct.closest('.node')?.dataset?.id !== excludeId) return direct;
+    const radius = Number(options.radius || 48);
     let best = null;
     let bestDistance = Infinity;
     nodesEl.querySelectorAll(selector).forEach(port => {
+        if(port.closest('.node')?.dataset?.id === excludeId) return;
         const r = port.getBoundingClientRect();
+        if(!r.width && !r.height) return;
         const cx = r.left + r.width / 2;
         const cy = r.top + r.height / 2;
         const d = Math.hypot(clientX - cx, clientY - cy);
@@ -13296,7 +13386,7 @@ function nearestPort(clientX, clientY, kind){
             best = port;
         }
     });
-    return bestDistance <= 48 ? best : null;
+    return bestDistance <= radius ? best : null;
 }
 function wouldCreateGeneratorCycle(fromId, toId){
     const seen = new Set();
@@ -13345,6 +13435,7 @@ function endDrag(event=null){
     const hadContentDrag = Boolean(dragNode || resizeNode || llmPaneDrag || knifeChanged || tempLink);
     const hadViewportDrag = Boolean(dragBoard || touchBoardPan || minimapDrag);
     const activeNodeDrag = dragNode;
+    const activeLinkDrag = tempLink;
     if(dragNode){
         const moved = [dragNode.node, ...(dragNode.children || []).map(c => c.node)].filter(Boolean);
         // 拖动 group/promptGroup 自身时不重新评估（成员跟着一起走，包含关系不变）
@@ -13352,6 +13443,7 @@ function endDrag(event=null){
         if(!draggedGroup) updateGroupMembership(moved);
     }
     unbindNodePointerDrag(activeNodeDrag, event);
+    if(activeLinkDrag) clearLinkDrag(activeLinkDrag, false);
     dragNode = null;
     dragBoard = null;
     touchBoardPan = null;
@@ -13365,7 +13457,7 @@ function endDrag(event=null){
     knifeNeedsRender = false;
     if(!event?.shiftKey) setKnifeMode(false);
     if(textSelectionGuard) textSelectionGuard.active = false;
-    document.body.classList.remove('canvas-node-drag', 'canvas-node-resize', 'canvas-selecting', 'canvas-board-pan');
+    document.body.classList.remove('canvas-node-drag', 'canvas-node-resize', 'canvas-selecting', 'canvas-board-pan', 'canvas-link-drag');
     window.onmousemove = null;
     window.onmouseup = null;
     if(shouldRenderKnife) render();
@@ -13761,9 +13853,115 @@ function isTouchBoardPanIgnoredTarget(target){
     return isEditableTarget(target)
         || Boolean(target?.closest?.('button, select, input, textarea, .node, .port, .resize-handle, #createMenu, #linkCreateMenu, #nodeInputMenu, #nodeOutputMenu, #imageNodeMenu, .minimap, #canvasAssetPanel, #assetManagerModal, #workflowTransferModal, #logModal, #promptTemplateModal, #imageEditModal, #outputLightbox'));
 }
+function touchBoardPointerList(){
+    return [...touchBoardPointers.values()];
+}
+function touchBoardPointerDistance(list=touchBoardPointerList()){
+    if(list.length < 2) return 0;
+    return Math.hypot(list[1].clientX - list[0].clientX, list[1].clientY - list[0].clientY);
+}
+function touchBoardPointerCenter(list=touchBoardPointerList()){
+    if(!list.length) return {clientX:0, clientY:0};
+    const first = list[0], second = list[1] || list[0];
+    return {
+        clientX:(first.clientX + second.clientX) / 2,
+        clientY:(first.clientY + second.clientY) / 2
+    };
+}
+function cancelTouchBoardPanForPinch(){
+    if(!touchBoardPan) return;
+    try { board.releasePointerCapture?.(touchBoardPan.pointerId); } catch(err) {}
+    touchBoardPan = null;
+    dragBoard = null;
+    document.body.classList.remove('canvas-board-pan');
+}
+function beginTouchBoardPinch(e){
+    if(!canvas || zoomPreviewState || dragNode || resizeNode || tempLink || selectDrag) return false;
+    const list = touchBoardPointerList();
+    if(list.length < 2) return false;
+    const distance = touchBoardPointerDistance(list);
+    if(distance < 8) return false;
+    cancelTouchBoardPanForPinch();
+    closeCreateMenu();
+    closeLinkCreateMenu();
+    if(document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+    const center = touchBoardPointerCenter(list);
+    touchBoardPinch = {
+        startDistance:distance,
+        startScale:safeViewportScale(viewport.scale),
+        worldCenter:screenToWorld(center.clientX, center.clientY),
+        moved:false
+    };
+    document.body.classList.add('canvas-pinch-zoom');
+    touchBoardPointers.forEach((_, pointerId) => {
+        try { board.setPointerCapture?.(pointerId); } catch(err) {}
+    });
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    e?.stopImmediatePropagation?.();
+    return true;
+}
+function trackTouchBoardPointerDown(e){
+    if(!canvas || e.pointerType === 'mouse') return;
+    touchBoardPointers.set(e.pointerId, {clientX:e.clientX, clientY:e.clientY});
+    if(touchBoardPointers.size >= 2) beginTouchBoardPinch(e);
+}
+function moveTouchBoardPinch(e){
+    if(e.pointerType === 'mouse') return;
+    if(touchBoardPointers.has(e.pointerId)){
+        touchBoardPointers.set(e.pointerId, {clientX:e.clientX, clientY:e.clientY});
+    }
+    if(!touchBoardPinch) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation?.();
+    const list = touchBoardPointerList();
+    if(list.length < 2) return;
+    const distance = touchBoardPointerDistance(list);
+    if(distance < 8) return;
+    const center = touchBoardPointerCenter(list);
+    const nextScale = touchBoardPinch.startScale * (distance / touchBoardPinch.startDistance);
+    if(Math.abs(distance - touchBoardPinch.startDistance) > 3) touchBoardPinch.moved = true;
+    setViewportScaleAroundClient(nextScale, center.clientX, center.clientY, touchBoardPinch.worldCenter);
+    lastMouseBoard = screenToWorld(center.clientX, center.clientY);
+}
+function finishTouchBoardPinch(e){
+    if(e?.pointerType === 'mouse') return;
+    const hadPointer = touchBoardPointers.delete(e.pointerId);
+    if(!touchBoardPinch) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation?.();
+    try { board.releasePointerCapture?.(e.pointerId); } catch(err) {}
+    if(touchBoardPointers.size < 2){
+        touchBoardPointers.forEach((_, pointerId) => {
+            try { board.releasePointerCapture?.(pointerId); } catch(err) {}
+        });
+        touchBoardPointers.clear();
+        const moved = touchBoardPinch.moved || hadPointer;
+        touchBoardPinch = null;
+        document.body.classList.remove('canvas-pinch-zoom');
+        if(moved) scheduleViewportSave();
+    } else {
+        beginTouchBoardPinch(e);
+    }
+}
+function clearTouchBoardGestureState(){
+    if(touchBoardPan){
+        try { board.releasePointerCapture?.(touchBoardPan.pointerId); } catch(err) {}
+    }
+    touchBoardPointers.forEach((_, pointerId) => {
+        try { board.releasePointerCapture?.(pointerId); } catch(err) {}
+    });
+    touchBoardPointers.clear();
+    touchBoardPinch = null;
+    touchBoardPan = null;
+    if(dragBoard && !dragBoard.node) dragBoard = null;
+    document.body.classList.remove('canvas-pinch-zoom', 'canvas-board-pan');
+}
 function startTouchBoardPan(e){
     if(!canvas || e.pointerType === 'mouse' || e.isPrimary === false) return false;
-    if(zoomPreviewState || touchBoardPan || dragNode || resizeNode || tempLink || selectDrag) return false;
+    if(zoomPreviewState || touchBoardPinch || touchBoardPointers.size > 1 || touchBoardPan || dragNode || resizeNode || tempLink || selectDrag) return false;
     if(!isTouchBoardPanSurface(e.target) || isTouchBoardPanIgnoredTarget(e.target)) return false;
     e.preventDefault();
     e.stopPropagation();
@@ -13807,6 +14005,10 @@ function finishTouchBoardPan(e){
 }
 
 board.addEventListener('pointerdown', startTouchBoardPan, {passive:false});
+board.addEventListener('pointerdown', trackTouchBoardPointerDown, {passive:false, capture:true});
+board.addEventListener('pointermove', moveTouchBoardPinch, {passive:false, capture:true});
+board.addEventListener('pointerup', finishTouchBoardPinch, {passive:false, capture:true});
+board.addEventListener('pointercancel', finishTouchBoardPinch, {passive:false, capture:true});
 board.addEventListener('pointermove', moveTouchBoardPan, {passive:false});
 board.addEventListener('pointerup', finishTouchBoardPan, {passive:false});
 board.addEventListener('pointercancel', finishTouchBoardPan, {passive:false});
@@ -14005,7 +14207,7 @@ window.addEventListener('keyup', e => {
     if(String(e.key || '').toLowerCase() === 'r') isRKeyDown = false;
     if(e.key === 'Shift') setKnifeMode(false);
 });
-window.addEventListener('blur', () => { isRKeyDown = false; setKnifeMode(false); });
+window.addEventListener('blur', () => { isRKeyDown = false; setKnifeMode(false); clearTouchBoardGestureState(); });
 window.addEventListener('blur', () => {
     if(selectDrag){
         selectionBox.style.display = 'none';
