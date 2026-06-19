@@ -38,6 +38,7 @@ MAC-使用说明.md
 
 .env
 API/.env
+VERSION
 data/
 assets/
 output/

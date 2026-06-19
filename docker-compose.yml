@@ -1,5 +1,8 @@
 services:
   infinite-canvas:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: qc0624/infinite-canvas:latest
     container_name: infinite-canvas
     ports:

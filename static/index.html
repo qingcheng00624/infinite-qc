@@ -2054,7 +2054,7 @@
         const PAGE_IDS = ['zimage','enhance','klein','angle','online','gpt-chat','canvas','asset-manager','api-settings','comfyui-settings'];
         const LOCAL_PAGE_IDS = ['zimage','enhance','klein','angle'];
         const PROJECT_URL = 'https://github.com/hero8152/Infinite-Canvas';
-        let appInfo = { version:'', repo_url:PROJECT_URL, version_url:'https://raw.githubusercontent.com/hero8152/Infinite-Canvas/main/VERSION' };
+        let appInfo = { version:'', update_check_enabled:false, repo_url:PROJECT_URL, version_url:'https://raw.githubusercontent.com/hero8152/Infinite-Canvas/main/VERSION' };
         let updateConnectivityResult = null;
         let projectUpdateRunning = false;
         let projectUpdateAbort = null;  // 当前更新请求的 AbortController，便于用户中途取消
@@ -2379,6 +2379,13 @@
         function setProjectVersionBadge(version) {
             const badge = document.getElementById('project-version-badge');
             if(!badge) return;
+            if(appInfo.update_check_enabled === false) {
+                badge.hidden = true;
+                document.getElementById('update-now-btn')?.classList.remove('show');
+                document.getElementById('github-entry-btn')?.classList.remove('update-available');
+                return;
+            }
+            badge.hidden = false;
             const full = versionLabel(version);
             badge.replaceChildren();
             if(version) {
@@ -2982,6 +2989,12 @@
                 appInfo = {...appInfo, ...info};
                 let current = String(appInfo.version || '').trim();
                 setProjectVersionBadge(current);
+                if(appInfo.update_check_enabled === false) {
+                    document.getElementById('github-entry-btn')?.classList.remove('update-available');
+                    document.getElementById('update-now-btn')?.classList.remove('show');
+                    if(manual) alert(isEn ? 'Update notifications are disabled.' : '更新提示已关闭。');
+                    return;
+                }
                 let best = null;
                 let reachable = false;
                 let serverChecked = false;

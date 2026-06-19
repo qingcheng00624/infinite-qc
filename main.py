@@ -1342,6 +1342,9 @@ def current_app_version():
     except Exception:
         return ""
 
+def update_check_enabled() -> bool:
+    return os.path.exists(os.path.join(BASE_DIR, "VERSION"))
+
 def update_notes_path() -> str:
     return os.path.join(STATIC_DIR, "update-notes.json")
 
@@ -1613,6 +1616,7 @@ def app_info():
     version = current_app_version()
     return {
         "version": version,
+        "update_check_enabled": update_check_enabled(),
         "repo_url": GITHUB_REPO_URL,
         "version_url": GITHUB_VERSION_URL,
         "tree_url": GITHUB_TREE_URL,
@@ -1757,6 +1761,18 @@ def version_gt(a: str, b: str) -> bool:
 def check_update():
     """服务端检测 GitHub 与 ModelScope 两个源的远端版本（走系统代理，避免浏览器跨域/被墙）。"""
     current = current_app_version()
+    if not update_check_enabled():
+        return {
+            "current": current,
+            "github": {},
+            "modelscope": {},
+            "latest": {},
+            "update_notes": {},
+            "update_notes_sources": {},
+            "update_available": False,
+            "reachable": False,
+            "update_check_enabled": False,
+        }
     # 并发检测两个源，避免串行 8s+8s 拖慢首屏更新提示
     holder: Dict[str, Dict[str, Any]] = {}
     def _probe(key: str, url: str):
@@ -4409,12 +4425,18 @@ async def generate_jimeng_video(payload: CanvasVideoRequest, provider):
 IMAGE_TASK_SUCCESS_STATUSES = {"SUCCESS", "SUCCESSFUL", "SUCCEED", "SUCCEEDED", "COMPLETED", "COMPLETE", "DONE", "FINISHED", "OK", "READY"}
 IMAGE_TASK_FAILED_STATUSES = {"FAILURE", "FAILED", "FAIL", "ERROR", "ERRORED", "CANCELED", "CANCELLED", "TIMEOUT", "REJECTED", "EXPIRED"}
 
-def image_task_url_for_provider(provider, task_id):
+def image_task_url_candidates_for_provider(provider, task_id):
     base_url = (provider.get("base_url") if provider else AI_BASE_URL).rstrip("/")
+    quoted_id = urllib.parse.quote(str(task_id or ""), safe="")
     is_apimart = is_apimart_provider(provider)
     if is_apimart:
-        return f"{base_url}/tasks/{task_id}" if base_url.endswith("/v1") else f"{base_url}/v1/tasks/{task_id}"
-    return f"{base_url}/images/tasks/{task_id}" if base_url.endswith("/v1") else f"{base_url}/v1/images/tasks/{task_id}"
+        image_task = f"{base_url}/images/tasks/{quoted_id}" if base_url.endswith("/v1") else f"{base_url}/v1/images/tasks/{quoted_id}"
+        legacy_task = f"{base_url}/tasks/{quoted_id}" if base_url.endswith("/v1") else f"{base_url}/v1/tasks/{quoted_id}"
+        return [image_task, legacy_task]
+    return [f"{base_url}/images/tasks/{quoted_id}" if base_url.endswith("/v1") else f"{base_url}/v1/images/tasks/{quoted_id}"]
+
+def image_task_url_for_provider(provider, task_id):
+    return image_task_url_candidates_for_provider(provider, task_id)[0]
 
 def image_task_data(payload):
     if isinstance(payload, dict) and isinstance(payload.get("data"), dict):
@@ -4431,10 +4453,32 @@ def image_task_fail_reason(payload):
     return task_data.get("fail_reason") or task_data.get("message") or error.get("message") or (payload.get("message") if isinstance(payload, dict) else "") or "生图任务失败"
 
 async def fetch_image_task_payload(client, task_id, provider=None):
-    task_url = image_task_url_for_provider(provider, task_id)
-    response = await client.get(task_url, headers=api_headers(provider=provider))
-    response.raise_for_status()
-    return response.json()
+    urls = image_task_url_candidates_for_provider(provider, task_id)
+    last_error = None
+    for index, task_url in enumerate(urls):
+        try:
+            response = await client.get(task_url, headers=api_headers(provider=provider))
+            if response.status_code >= 400:
+                if index < len(urls) - 1 and (response.status_code in (404, 405) or looks_like_html_response(response.text)):
+                    last_error = httpx.HTTPStatusError(
+                        f"Task endpoint unavailable: {response.status_code}",
+                        request=response.request,
+                        response=response,
+                    )
+                    continue
+                response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as exc:
+            last_error = exc
+            if index >= len(urls) - 1:
+                raise
+        except Exception as exc:
+            last_error = exc
+            if index >= len(urls) - 1:
+                raise
+    if last_error:
+        raise last_error
+    raise HTTPException(status_code=502, detail=f"查询生图任务失败：{task_id}")
 
 async def wait_for_image_task(client, task_id, provider=None):
     is_apimart = is_apimart_provider(provider)
@@ -8384,7 +8428,8 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
     if not base_url:
         raise HTTPException(status_code=400, detail=f"{provider.get('name') or provider['id']} 未配置 Base URL")
     gen_url = provider_endpoint_url(provider, "image_generation_endpoint", "/v1/images/generations")
-    edit_url = provider_endpoint_url(provider, "image_edit_endpoint", "/v1/images/edits")
+    apimart_gen_url = provider_endpoint_url(provider, "image_generation_endpoint", "/v1/images/generations/async") if is_apimart else gen_url
+    edit_url = provider_endpoint_url(provider, "image_edit_endpoint", "/v1/images/edits/async" if is_apimart else "/v1/images/edits")
     refs = [ref for ref in (reference_images or []) if ref.get("url")]
     mask_refs = [ref for ref in refs if str(ref.get("role") or "").strip().lower() == "mask" or str(ref.get("name") or "").lower().endswith("_mask.png")]
     image_refs = [ref for ref in refs if ref not in mask_refs]
@@ -8412,10 +8457,11 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
                 extra_body["image"] = [reference_to_data_url(ref, max_size=1536) for ref in image_refs[:16]]
             body = {"model": model, "prompt": prompt, "size": size, "extra_body": extra_body}
             response = await client.post(gen_url, headers=api_headers(provider=provider, model=model), json=body)
-        elif is_apimart:
+        elif is_apimart and not image_refs and not mask_refs:
             apimart_size, resolution = apimart_size_resolution(size)
-            # APIMart 的 GPT-Image-2 图生图仍走 /images/generations，
-            # 通过 image_urls 传参考图，不使用 OpenAI multipart /images/edits。
+            # APIMart 异步文生图走 /images/generations/async。
+            # 改图不能把 image_urls 塞进 generations/async：上游会忽略参考图；
+            # 有参考图/遮罩时落入下方 OpenAI multipart edits 流程，提交到 /images/edits/async。
             body = {
                 "model": model,
                 "prompt": prompt,
@@ -8424,9 +8470,9 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
                 "resolution": resolution,
                 "official_fallback": False,
             }
-            if image_refs:
-                body["image_urls"] = [reference_to_data_url(ref, max_size=1536) for ref in image_refs[:16]]
-            response = await client.post(gen_url, headers=api_headers(provider=provider, model=model), json=body)
+            response = await client.post(apimart_gen_url, headers=api_headers(provider=provider, model=model), json=body)
+            if apimart_gen_url != gen_url and (response.status_code in (404, 405) or looks_like_html_response(response.text)):
+                response = await client.post(gen_url, headers=api_headers(provider=provider, model=model), json=body)
         elif is_gpt2 and not image_refs and not mask_refs:
             body = {"model": model, "prompt": prompt, "size": size}
             if quality:
@@ -10457,8 +10503,8 @@ async def test_provider_connection(payload: TestConnectionPayload):
 
 @app.post("/api/providers/probe-async")
 async def probe_async_endpoint(payload: TestConnectionPayload):
-    """验证异步协议：用假 task_id 请求 GET /v1/tasks/{fake_id}。
-    收到 400 Invalid task ID = 端点存在且 Key 有效；401/403 = Key 无效；404/连接失败 = 不支持异步端点。"""
+    """验证异步协议：用假 task_id 优先请求 GET /v1/images/tasks/{fake_id}。
+    收到任务 ID 相关的 400/404 = 端点存在且 Key 有效；401/403 = Key 无效；网页/连接失败 = 不支持异步端点。"""
     base_url = (payload.base_url or "").strip().rstrip("/")
     if not base_url:
         raise HTTPException(status_code=400, detail="请先填写请求地址")
@@ -10496,47 +10542,58 @@ async def probe_async_endpoint(payload: TestConnectionPayload):
                 }
         except httpx.HTTPError as e:
             raise HTTPException(status_code=502, detail=str(e)[:300])
-    tasks_base = base_url if base_url.endswith("/v1") else f"{base_url}/v1"
-    probe_url = f"{tasks_base}/tasks/healthcheck_probe_do_not_submit"
+    probe_task_id = "healthcheck_probe_do_not_submit"
+    probe_provider = {"base_url": base_url, "protocol": "apimart"}
+    probe_urls = image_task_url_candidates_for_provider(probe_provider, probe_task_id)
     try:
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(probe_url, headers={"Authorization": bearer_auth_value(api_key), "Accept": "application/json"})
-            try:
-                body = resp.json()
-            except Exception:
-                body = resp.text[:500]
-            sc = resp.status_code
-            # 判断结果
-            err_msg = ""
-            if isinstance(body, dict):
-                err = body.get("error") or {}
-                if isinstance(err, dict):
-                    err_msg = str(err.get("message") or "").lower()
-                else:
-                    err_msg = str(err).lower()
-            # 400 + "invalid task id" → 端点存在，Key 有效
-            if sc == 400 and "invalid task id" in err_msg:
-                return {"ok": True, "protocol": "apimart", "status_code": sc, "message": "APIMart 异步任务端点可用，API Key 已通过认证", "raw": body}
+            async_probe = {"status": 0, "message": "异步任务端点不可用", "raw": None}
+            for index, probe_url in enumerate(probe_urls):
+                resp = await client.get(probe_url, headers={"Authorization": bearer_auth_value(api_key), "Accept": "application/json"})
+                try:
+                    body = resp.json()
+                except Exception:
+                    body = resp.text[:500]
+                sc = resp.status_code
+                parsed_path = urllib.parse.urlparse(probe_url).path or probe_url
+                err_msg = ""
+                if isinstance(body, dict):
+                    err = body.get("error") or body.get("detail") or body.get("message") or {}
+                    if isinstance(err, dict):
+                        err_msg = str(err.get("message") or err.get("detail") or "").lower()
+                    else:
+                        err_msg = str(err).lower()
+                if sc in (400, 404) and "task" in err_msg and not looks_like_html_response(resp.text):
+                    return {
+                        "ok": True,
+                        "protocol": "apimart",
+                        "status_code": sc,
+                        "message": f"APIMart 异步任务端点可用（{parsed_path}），API Key 已通过认证",
+                        "raw": body,
+                    }
 
-            async_probe = {"status": sc, "message": "", "raw": body}
-            if sc in (301, 302, 303, 307, 308):
-                location = resp.headers.get("Location") or resp.headers.get("location") or ""
-                async_probe["message"] = f"/v1/tasks/ 发生跳转{f'：{location}' if location else ''}"
-            elif looks_like_html_response(resp.text):
-                async_probe["message"] = "/v1/tasks/ 返回网页 HTML"
-            elif sc in (401, 403):
-                async_probe["message"] = "/v1/tasks/ 返回鉴权失败"
-            elif sc == 404:
-                async_probe["message"] = "平台不支持 /v1/tasks/ 端点，可能不是 APIMart 异步协议"
-            elif 400 <= sc < 500:
-                async_probe["message"] = f"/v1/tasks/ 返回 {sc}"
-            elif sc < 300:
-                async_probe["message"] = f"/v1/tasks/ 返回 {sc}（意外成功）"
-            else:
-                async_probe["message"] = f"/v1/tasks/ 服务端错误 {sc}"
+                async_probe = {"status": sc, "message": "", "raw": body, "endpoint": parsed_path}
+                if sc in (301, 302, 303, 307, 308):
+                    location = resp.headers.get("Location") or resp.headers.get("location") or ""
+                    async_probe["message"] = f"{parsed_path} 发生跳转{f'：{location}' if location else ''}"
+                elif looks_like_html_response(resp.text):
+                    async_probe["message"] = f"{parsed_path} 返回网页 HTML"
+                elif sc in (401, 403):
+                    async_probe["message"] = f"{parsed_path} 返回鉴权失败"
+                elif sc == 404:
+                    async_probe["message"] = f"平台不支持 {parsed_path} 端点，可能不是 APIMart 异步协议"
+                elif 400 <= sc < 500:
+                    async_probe["message"] = f"{parsed_path} 返回 {sc}"
+                elif sc < 300:
+                    async_probe["message"] = f"{parsed_path} 返回 {sc}（意外成功）"
+                else:
+                    async_probe["message"] = f"{parsed_path} 服务端错误 {sc}"
+                if index < len(probe_urls) - 1 and (sc in (404, 405) or looks_like_html_response(resp.text)):
+                    continue
+                break
 
             if protocol == "apimart":
-                return {"ok": False, "protocol": "apimart", "status_code": sc, "message": async_probe["message"], "raw": body}
+                return {"ok": False, "protocol": "apimart", "status_code": async_probe["status"], "message": async_probe["message"], "raw": async_probe["raw"]}
 
             openai_ok, openai_probe = await probe_openai_models_endpoint(client, base_url, api_key)
             if not openai_ok and protocol == "openai":
@@ -10545,14 +10602,14 @@ async def probe_async_endpoint(payload: TestConnectionPayload):
                     return {
                         "ok": True,
                         "protocol": "volcengine",
-                        "status_code": volc_probe.get("status") or openai_probe.get("status") or sc,
+                        "status_code": volc_probe.get("status") or openai_probe.get("status") or async_probe.get("status") or 0,
                         "message": f"{volc_probe.get('message') or '检测到方舟/Ark 兼容入口'}，已自动切换为方舟/Ark 任务协议",
                         "raw": {"async_probe": async_probe, "openai_probe": openai_probe.get("raw"), **(volc_probe.get("raw") or {})},
                     }
             return {
                 "ok": openai_ok,
                 "protocol": "openai",
-                "status_code": openai_probe.get("status") or sc,
+                "status_code": openai_probe.get("status") or async_probe.get("status") or 0,
                 "message": openai_probe.get("message") or "OpenAI 兼容验证完成",
                 "raw": {"async_probe": async_probe, "openai_probe": openai_probe.get("raw")},
                 "model_count": openai_probe.get("model_count") or 0,

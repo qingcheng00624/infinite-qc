@@ -944,6 +944,14 @@ function guardMatchesManagedSelection(target){
         && current.id === managedSelectionPointerGuard.id
         && Date.now() - managedSelectionPointerGuard.at < 600;
 }
+function isMobileAssetViewport(){
+    return window.innerWidth <= 820 || Boolean(window.matchMedia?.('(pointer: coarse)')?.matches);
+}
+function shouldPreviewCardOnMobile(target){
+    if(!isMobileAssetViewport()) return false;
+    if(target.closest?.('button,input,textarea,select,[contenteditable="true"]')) return false;
+    return !!target.closest?.('.asset-thumb');
+}
 function normalizeAssetState(){
     const libs = assetLibraries();
     if(!activeAssetLibraryId || !libs.some(lib => lib.id === activeAssetLibraryId)) activeAssetLibraryId = assetLibrary.active_library_id || libs[0]?.id || '';
@@ -2998,7 +3006,7 @@ async function handleClick(event){
     const localUpDeleteOne = target.closest?.('[data-localup-delete-one]');
     if(localUpDeleteOne){ await deleteLocalAssets([localUpDeleteOne.dataset.localupDeleteOne || '']); return; }
     const localUpCheck = target.closest?.('[data-localup-check]');
-    if(localUpCheck){
+    if(localUpCheck && localUploadManageMode){
         event.preventDefault();
         event.stopPropagation();
         const id = localUpCheck.dataset.localupCheck || '';
@@ -3015,6 +3023,7 @@ async function handleClick(event){
     const localUpCard = target.closest?.('[data-localup-card]');
     if(localUpCard){
         const id = localUpCard.dataset.localupCard || '';
+        const previewOnMobile = shouldPreviewCardOnMobile(target);
         if(localUploadManageMode){
             const selected = toggleSelectionSet(selectedLocalUploadIds, id);
             selectedLocalUploadId = selected ? id : (selectedLocalUploadId === id ? '' : selectedLocalUploadId);
@@ -3022,6 +3031,7 @@ async function handleClick(event){
             selectedLocalUploadId = id;
         }
         render();
+        if(previewOnMobile && !localUploadManageMode) showDetailPreview('localup', id);
         return;
     }
     if(target.closest?.('[data-local-pick-folder]')){ await registerSharedFolder(); return; }
@@ -3060,20 +3070,19 @@ async function handleClick(event){
     const canvasAssetCopy = target.closest?.('[data-canvas-asset-copy]');
     if(canvasAssetCopy){ const it = findCanvasAssetItem(canvasAssetCopy.dataset.canvasAssetCopy || ''); const ok = await copyTextToClipboard(it?.url || ''); setStatus(ok ? '已复制画布资产链接' : '复制失败'); return; }
     const canvasAssetCheck = target.closest?.('[data-canvas-asset-check]');
-    if(canvasAssetCheck){
+    if(canvasAssetCheck && canvasAssetManageMode){
         event.preventDefault();
         event.stopPropagation();
-        if(canvasAssetManageMode){
-            const id = canvasAssetCheck.dataset.canvasAssetCheck || '';
-            const selected = toggleSelectionSet(selectedCanvasAssetIds, id);
-            selectedCanvasAssetId = selected ? id : (selectedCanvasAssetId === id ? '' : selectedCanvasAssetId);
-            refreshCanvasAssetSelectionOnly();
-        }
+        const id = canvasAssetCheck.dataset.canvasAssetCheck || '';
+        const selected = toggleSelectionSet(selectedCanvasAssetIds, id);
+        selectedCanvasAssetId = selected ? id : (selectedCanvasAssetId === id ? '' : selectedCanvasAssetId);
+        refreshCanvasAssetSelectionOnly();
         return;
     }
     const canvasAssetCard = target.closest?.('[data-canvas-asset-card]');
     if(canvasAssetCard){
         const id = canvasAssetCard.dataset.canvasAssetCard || '';
+        const previewOnMobile = shouldPreviewCardOnMobile(target);
         if(canvasAssetManageMode){
             const selected = toggleSelectionSet(selectedCanvasAssetIds, id);
             selectedCanvasAssetId = selected ? id : (selectedCanvasAssetId === id ? '' : selectedCanvasAssetId);
@@ -3081,6 +3090,7 @@ async function handleClick(event){
             selectedCanvasAssetId = id;
         }
         refreshCanvasAssetSelectionOnly();
+        if(previewOnMobile && !canvasAssetManageMode) showDetailPreview('canvas-asset', id);
         return;
     }
     const sharedRemove = target.closest?.('[data-shared-remove]');
@@ -3106,20 +3116,19 @@ async function handleClick(event){
     const localFolder = target.closest?.('[data-local-folder]');
     if(localFolder){ activeLocalFolderId = localFolder.dataset.localFolder || ''; selectedLocalId = ''; selectedLocalIds.clear(); pendingBatchDelete = ''; render(); return; }
     const localCheck = target.closest?.('[data-local-check]');
-    if(localCheck){
+    if(localCheck && localManageMode){
         event.preventDefault();
         event.stopPropagation();
-        if(localManageMode){
-            const id = localCheck.dataset.localCheck || '';
-            const selected = toggleSelectionSet(selectedLocalIds, id);
-            selectedLocalId = selected ? id : (selectedLocalId === id ? '' : selectedLocalId);
-            render();
-        }
+        const id = localCheck.dataset.localCheck || '';
+        const selected = toggleSelectionSet(selectedLocalIds, id);
+        selectedLocalId = selected ? id : (selectedLocalId === id ? '' : selectedLocalId);
+        render();
         return;
     }
     const localCard = target.closest?.('[data-local-card]');
     if(localCard){
         const id = localCard.dataset.localCard || '';
+        const previewOnMobile = shouldPreviewCardOnMobile(target);
         if(localManageMode){
             const selected = toggleSelectionSet(selectedLocalIds, id);
             selectedLocalId = selected ? id : (selectedLocalId === id ? '' : selectedLocalId);
@@ -3127,6 +3136,7 @@ async function handleClick(event){
             selectedLocalId = id;
         }
         render();
+        if(previewOnMobile && !localManageMode) showDetailPreview('local', id);
         return;
     }
     if(target.closest?.('[data-workflow-manage]')){
@@ -3306,21 +3316,20 @@ async function handleClick(event){
     const assetCat = target.closest?.('[data-asset-cat]');
     if(assetCat){ activeAssetLibraryId = assetCat.dataset.assetCatLib || activeAssetLibraryId; activeAssetCategoryId = assetCat.dataset.assetCat || ''; activeAssetClassFilter = ''; assetTreeFocus = 'category'; selectedAssetId = ''; selectedAssetIds.clear(); render(); return; }
     const assetCheck = target.closest?.('[data-asset-check]');
-    if(assetCheck){
+    if(assetCheck && assetManageMode){
         event.preventDefault();
         event.stopPropagation();
-        if(assetManageMode){
-            const id = assetCheck.dataset.assetCheck || '';
-            const selected = toggleSelectionSet(selectedAssetIds, id);
-            selectedAssetId = selected ? id : (selectedAssetId === id ? '' : selectedAssetId);
-            pendingBatchDelete = '';
-            render();
-        }
+        const id = assetCheck.dataset.assetCheck || '';
+        const selected = toggleSelectionSet(selectedAssetIds, id);
+        selectedAssetId = selected ? id : (selectedAssetId === id ? '' : selectedAssetId);
+        pendingBatchDelete = '';
+        render();
         return;
     }
     const assetCard = target.closest?.('[data-asset-card]');
     if(assetCard){
         const id = assetCard.dataset.assetCard || '';
+        const previewOnMobile = shouldPreviewCardOnMobile(target);
         if(assetManageMode){
             const selected = toggleSelectionSet(selectedAssetIds, id);
             selectedAssetId = selected ? id : (selectedAssetId === id ? '' : selectedAssetId);
@@ -3331,6 +3340,7 @@ async function handleClick(event){
         pendingDeleteAssetId = '';
         pendingBatchDelete = '';
         render();
+        if(previewOnMobile && !assetManageMode) showDetailPreview('asset', id);
         return;
     }
 
