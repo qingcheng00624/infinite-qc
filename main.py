@@ -3190,6 +3190,16 @@ def canvas_asset_name(value, url="", fallback="asset"):
                 return sanitize_asset_name(name, fallback)
     return sanitize_asset_name(filename_from_media_url(url, fallback), fallback)
 
+def canvas_asset_local_image_dimensions(url):
+    path = output_file_from_url(url)
+    if not path:
+        return None
+    try:
+        with Image.open(path) as img:
+            return img.size
+    except Exception:
+        return None
+
 def iter_canvas_asset_values(value, path=""):
     if isinstance(value, dict):
         url = canvas_asset_downloadable_url(canvas_asset_url_value(value))
@@ -3252,9 +3262,13 @@ def extract_canvas_assets(canvas):
                 "created_at": node.get("created_at") or record.get("updated_at") or record.get("created_at") or 0,
             }
             if isinstance(raw, dict):
-                for key in ("natural_w", "natural_h", "width", "height", "size", "duration", "runMs"):
+                for key in ("natural_w", "natural_h", "width", "height", "w", "h", "size", "resolution", "duration", "runMs"):
                     if raw.get(key) is not None:
                         item[key] = raw.get(key)
+            if kind == "image" and not (item.get("natural_w") and item.get("natural_h")):
+                dimensions = canvas_asset_local_image_dimensions(url)
+                if dimensions:
+                    item["natural_w"], item["natural_h"] = dimensions
             items.append(item)
     return items
 

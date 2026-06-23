@@ -159,6 +159,18 @@ function formatFileSize(bytes=0){
     const idx = Math.min(units.length - 1, Math.floor(Math.log(size) / Math.log(1024)));
     return `${(size / Math.pow(1024, idx)).toFixed(idx ? 1 : 0)} ${units[idx]}`;
 }
+function formatAssetResolution(item){
+    const positiveInt = value => {
+        const num = Number(value);
+        return Number.isFinite(num) && num > 0 ? Math.round(num) : 0;
+    };
+    const width = positiveInt(item?.natural_w || item?.width || item?.w || item?.image_width || item?.layout_w);
+    const height = positiveInt(item?.natural_h || item?.height || item?.h || item?.image_height || item?.layout_h);
+    if(width && height) return `${width} x ${height}`;
+    const size = String(item?.resolution || item?.size || '').trim();
+    const match = size.match(/(\d{2,5})\s*[xX*]\s*(\d{2,5})/);
+    return match ? `${Number(match[1])} x ${Number(match[2])}` : '未知';
+}
 function assetLibraries(){
     return Array.isArray(assetLibrary.libraries) && assetLibrary.libraries.length
         ? assetLibrary.libraries
@@ -1239,7 +1251,7 @@ function renderCanvasAssetDetail(item){
                 <div class="detail-meta-grid">
                     <div class="detail-meta"><span>类型</span><strong>${escapeHtml(canvasAssetKindLabel(item))}</strong></div>
                     <div class="detail-meta"><span>画布分类</span><strong>${escapeHtml(canvasKindLabel(item.canvas_kind))}</strong></div>
-                    <div class="detail-meta"><span>来源画布</span><strong title="${escapeAttr(item.canvas_title || '')}">${escapeHtml(item.canvas_title || '未命名画布')}</strong></div>
+                    <div class="detail-meta"><span>图片分辨率</span><strong>${escapeHtml(formatAssetResolution(item))}</strong></div>
                     <div class="detail-meta"><span>更新时间</span><strong>${escapeHtml(formatDate(item.canvas_updated_at || item.created_at))}</strong></div>
                     <div class="detail-meta"><span>来源节点</span><strong title="${escapeAttr(item.node_title || item.node_type || '')}">${escapeHtml(item.node_title || item.node_type || '节点')}</strong></div>
                     <div class="detail-meta"><span>节点类型</span><strong>${escapeHtml(item.node_type || '-')}</strong></div>
