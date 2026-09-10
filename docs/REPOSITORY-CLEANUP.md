@@ -117,3 +117,7 @@ Chrome / Photoshop 扩展源码不再随本地项目分发；服务端相关兼�
 - `登录即梦CLI.command`
 - `赞赏.png`
 - `运行说明.txt`
+
+## 首次推送的历史整合
+
+远程仓库原有初始化提交 `30ce98b`（仅含 README）。首次推送前通过合并保留该提交，不强制覆盖远程历史；当前根 README 使用本地版说明，远端原 README 另存于 `docs/history/README.remote-initial.md`。原项目的既有提交历史同样保留，旧文件仍可能在历史版本中找到。
