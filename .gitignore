@@ -11,3 +11,12 @@ venv/
 env/
 .DS_Store
 Thumbs.db
+
+# Local tooling and test output
+.env
+.env.*
+!.env.example
+node_modules/
+.pytest_cache/
+playwright-report/
+test-results/

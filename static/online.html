@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html data-mobile-page="online" lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <link rel="icon" href="/static/images/logo.png" type="image/png">
     <title>在线生图</title>
     <script>
@@ -150,6 +150,8 @@
             -webkit-backdrop-filter: blur(22px) saturate(1.05) !important;
         }
     </style>
+    <link rel="stylesheet" href="/static/css/mobile.css">
+    <script src="/static/js/mobile.js" defer></script>
 </head>
 <body>
     <div class="container-box min-h-screen flex flex-col">
@@ -394,7 +396,7 @@
             const list = (apiProviders || []).filter(p => p.enabled !== false && (
                 (p.image_models || []).length || (p.rh_apps || []).length || (p.rh_workflows || []).length
             ));
-            return list.length ? list : [{id:'comfly', name:'Comfly', image_models:[models.gpt, models.nano]}];
+            return list;
         }
         function providerById(id){
             return imageProviders().find(p => p.id === id) || imageProviders()[0];

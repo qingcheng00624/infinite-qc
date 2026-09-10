@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html data-mobile-page="api-settings" lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>API 设置</title>
     <script>
         (function(){
@@ -21,6 +21,8 @@
     <script src="/static/js/i18n.js?v=2026.06.15.1781551499"></script>
     <link rel="stylesheet" href="/static/css/theme.css?v=2026.06.15.1781551499">
     <link rel="stylesheet" href="/static/css/api-settings.css?v=2026.06.15.1781551499">
+    <link rel="stylesheet" href="/static/css/mobile.css">
+    <script src="/static/js/mobile.js" defer></script>
 </head>
 <body>
     <div class="page">
@@ -38,7 +40,6 @@
                     <div class="side-section-title" data-i18n="api.providersTitle">平台列表</div>
                     <div id="providerList" class="provider-list"></div>
                     <button class="add-btn" type="button" onclick="addProvider()"><i data-lucide="plus" class="w-4 h-4"></i><span data-i18n="api.addProvider">新增平台</span></button>
-                    <button class="api-link-btn" type="button" onclick="openRecommendApi()"><i data-lucide="sparkles" class="w-4 h-4"></i><span data-i18n="api.recommendApi">推荐API</span></button>
                 </aside>
 
                 <main id="settingsContent" class="content">

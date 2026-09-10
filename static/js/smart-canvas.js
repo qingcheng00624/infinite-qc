@@ -1673,7 +1673,7 @@ const DEFAULT_VIDEO_MODELS = ['veo3-fast','veo3','sora','runway','kling','pika',
 function videoApiProviders(){
     const fromConfig = (apiProviders || []).filter(p => p.enabled !== false && p.id !== 'volcengine' && (p.video_models || []).length);
     if(fromConfig.length) return fromConfig;
-    return [{id:'comfly', name:'Comfly', video_models:DEFAULT_VIDEO_MODELS, enabled:true}];
+    return [];
 }
 function videoProviderById(providerId){
     if(providerId === 'volcengine') return volcengineProvider();

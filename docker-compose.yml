@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: qc0624/infinite-canvas:latest
+    image: infinite-canvas-local:dev
     container_name: infinite-canvas
     ports:
       - "3000:3000"

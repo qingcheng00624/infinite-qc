@@ -14,8 +14,6 @@ __pycache__/
 .coverage
 htmlcov/
 
-python/
-packages/
 node_modules/
 
 *.log
@@ -32,9 +30,6 @@ AGENTS.md
 LICENSE
 README.md
 README-Docker.md
-MAC-使用说明.md
-新手运行与使用教程.md
-运行说明.txt
 
 .env
 API/.env
@@ -42,3 +37,6 @@ VERSION
 data/
 assets/
 output/
+
+# Source archives and documentation are not runtime assets.
+docs/

@@ -107,7 +107,7 @@
     }
 
     function scaleOptedOut(){
-        return document.documentElement.dataset.studioScale === 'off';
+        return document.documentElement.dataset.studioScale === 'off' || window.matchMedia('(max-width:820px)').matches;
     }
 
     function applyScale(mode){
@@ -144,10 +144,8 @@
     function scheduleAutoScaleRefresh(){
         clearTimeout(resizeTimer);
         resizeTimer = setTimeout(() => {
-            if(currentScaleMode() === 'auto') {
-                applyScale('auto');
-                broadcastScale('auto');
-            }
+            applyScale(currentScaleMode());
+            broadcastScale(currentScaleMode());
         }, 160);
     }
 

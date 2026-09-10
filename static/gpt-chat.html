@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html data-mobile-page="gpt-chat" lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <link rel="icon" href="/static/images/logo.png" type="image/png">
     <title>GPT 对话</title>
     <script>
@@ -453,6 +453,8 @@
             background:transparent !important;
         }
     </style>
+    <link rel="stylesheet" href="/static/css/mobile.css">
+    <script src="/static/js/mobile.js" defer></script>
 </head>
 <body>
     <div class="chat-shell">
@@ -752,12 +754,11 @@
         }
         function chatProviders(){
             const list = (apiProviders || []).filter(p => p.enabled !== false && (p.chat_models || []).length);
-            if(config.ms_chat_models?.length && !list.some(p => p.id === 'modelscope')) list.push({id:'modelscope', name:'ModelScope', chat_models:config.ms_chat_models, image_models:[]});
-            return list.length ? list : [{id:'comfly', name:'API', chat_models:[config.chat_model || 'gpt-4o-mini'], image_models:[config.image_model || 'gpt-image-2']}];
+            return list;
         }
         function imageProviders(){
             const list = (apiProviders || []).filter(p => p.enabled !== false && (p.image_models || []).length);
-            return list.length ? list : [{id:'comfly', name:'API', image_models:[config.image_model || 'gpt-image-2'], chat_models:[config.chat_model || 'gpt-4o-mini']}];
+            return list;
         }
         function providerById(id, kind='chat'){
             const list = kind === 'image' ? imageProviders() : chatProviders();
@@ -1431,7 +1432,13 @@
             body.classList.toggle('has-overflow', body.scrollHeight > body.clientHeight + 2);
         }
         function autoGrow(el){ el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 150) + 'px'; updateComposerOverflow(); }
-        function handleKey(e){ if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } }
+        function handleKey(e){
+            if(e.isComposing || e.keyCode === 229) return;
+            const touchLayout = matchMedia('(pointer:coarse)').matches;
+            if(e.key === 'Enter' && !e.shiftKey && (!touchLayout || e.ctrlKey || e.metaKey)){
+                e.preventDefault(); sendMessage();
+            }
+        }
         window.addEventListener('keydown', e => {
             if(e.key === 'Escape') closeImagePreview();
         });
